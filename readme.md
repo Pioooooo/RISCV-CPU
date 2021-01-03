@@ -1,5 +1,8 @@
 # RISCV CPU
 
+- Repo: github.com/Pioooooo/RISCV-CPU
+- Hash: f4bfffc826b98634c4652fb6d5280bf6e3422924
+
 - Implemented on FPGA.
 - Frequency: 100MHz, WNS: -0.950ns
 - Supported features:
