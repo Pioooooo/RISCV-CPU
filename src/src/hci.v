@@ -31,8 +31,7 @@ module hci
 #(
   parameter SYS_CLK_FREQ = 100000000,
   parameter RAM_ADDR_WIDTH = 17,
-  parameter BAUD_RATE = 115200,
-  parameter DBG = 0
+  parameter BAUD_RATE = 115200
 )
 (
   input   wire                        clk,              // system clock signal
@@ -50,6 +49,8 @@ module hci
   output  wire  [ 7:0]                io_dout,          // I/O data output bus
   input   wire                        io_wr,            // I/O write/read select
   output  wire                        io_full,          // I/O buffer full signal 
+
+  output  reg                         program_finish,   // program finish signal
 
   input   wire  [31:0]                cpu_dbgreg_din    // cpu debug register read bus
 );
@@ -142,6 +143,7 @@ assign cpu_dbgreg_seg[0] = cpu_dbgreg_din[7:0];
 reg  [31:0] q_cpu_cycle_cnt;
 wire [31:0] d_cpu_cycle_cnt;
 assign d_cpu_cycle_cnt = active ? q_cpu_cycle_cnt : q_cpu_cycle_cnt + 1'b1;
+reg d_program_finish;
 
 // Update FF state.
 always @(posedge clk)
@@ -176,6 +178,7 @@ always @(posedge clk)
         q_io_en            <= io_en;
         q_cpu_cycle_cnt    <= d_cpu_cycle_cnt;
         q_io_dout          <= d_io_dout;
+        program_finish     <= d_program_finish;
       end
   end
 
@@ -233,6 +236,8 @@ always @*
     d_io_in_wr_en = 1'b0;
     d_io_in_wr_data = 8'h00;
 
+    d_program_finish = 1'b0;
+
     if (parity_err)
       d_err_code[DBG_UART_PARITY_ERR] = 1'b1;
 
@@ -251,6 +256,8 @@ always @*
               d_tx_data = 8'h00;
               d_wr_en = 1'b1;
             end
+            d_state = S_DECODE; 
+            d_program_finish = 1'b1;
             $display("IO:Return");
             $finish;
           end

@@ -6,25 +6,16 @@ module riscv_top
 	parameter SIM = 0						// whether in simulation
 )
 (
-	input  wire			EXCLK,
-	input  wire			btnC,
-	input  wire			btnU,
-	input  wire [1:0]	sw,
-	output wire			Tx,
-	input  wire			Rx,
-	output wire [3:0]	led,
-	output wire [6:0]	seg,
-	output wire			dp,
-	output wire [3:0]	an
+	input wire 			EXCLK,
+	input wire			btnC,
+	output wire 		Tx,
+	input wire 			Rx,
+	output wire			led
 );
 
 localparam SYS_CLK_FREQ = 100000000;
 localparam UART_BAUD_RATE = 115200;
 localparam RAM_ADDR_WIDTH = 17; 			// 128KiB ram, should not be modified
-
-localparam DISPLAY_REFRESH_RATE = 500000;
-
-localparam OPT_DBG = 0;
 
 reg rst;
 reg rst_delay;
@@ -33,13 +24,6 @@ wire clk;
 
 // assign EXCLK (or your own clock module) to clk
 assign clk = EXCLK;
-// wire locked;
-// clk_wiz_0 NEW_CLK(
-// 	.reset(btnC),
-// 	.clk_in1(EXCLK),
-// 	.clk_out1(clk),
-// 	.locked(locked)
-// );
 
 always @(posedge clk or posedge btnC)
 begin
@@ -71,7 +55,7 @@ wire [ 7:0]					ram_dout;
 
 ram #(.ADDR_WIDTH(RAM_ADDR_WIDTH))ram0(
 	.clk_in(clk),
-	.en_in(ram_en && (sw[0] ? manual_clk : 1'b1)),
+	.en_in(ram_en),
 	.r_nw_in(~cpumc_wr),
 	.a_in(ram_a),
 	.d_in(cpumc_din),
@@ -109,12 +93,13 @@ wire [ 7:0]					hci_io_dout;
 wire 						hci_io_wr;
 wire 						hci_io_full;
 
+wire						program_finish;
+
 reg                         q_hci_io_en;
 
-cpu #(.DBG(OPT_DBG)) cpu0
-(
+cpu cpu0(
 	.clk_in(clk),
-	.rst_in(rst),
+	.rst_in(rst | program_finish),
 	.rdy_in(cpu_rdy),
 
 	.mem_din(cpu_ram_din),
@@ -129,8 +114,7 @@ cpu #(.DBG(OPT_DBG)) cpu0
 
 hci #(.SYS_CLK_FREQ(SYS_CLK_FREQ),
 	.RAM_ADDR_WIDTH(RAM_ADDR_WIDTH),
-	.BAUD_RATE(UART_BAUD_RATE),
-	.DBG(OPT_DBG)) hci0
+	.BAUD_RATE(UART_BAUD_RATE)) hci0
 (
 	.clk(clk),
 	.rst(rst),
@@ -148,6 +132,8 @@ hci #(.SYS_CLK_FREQ(SYS_CLK_FREQ),
 	.io_wr(hci_io_wr),
 	.io_full(hci_io_full),
 
+	.program_finish(program_finish), 
+
 	.cpu_dbgreg_din(cpu_dbgreg_dout)	// demo
 );
 
@@ -160,35 +146,11 @@ assign hci_io_din	= cpumc_din;
 wire hci_active;
 assign hci_active 	= hci_active_out & ~SIM;
 
-// seven segment display pc
-display_ctrl #(.SYS_CLK_FREQ(SYS_CLK_FREQ),
-			 .DISPLAY_REFRESH_RATE(DISPLAY_REFRESH_RATE)) display_ctrl0
-(
-	.clk(clk),
-	.rst(rst),
-	.en(sw[1] & !SIM),
-	.val(cpu_dbgreg_dout[15:0]),
-	.seg(seg),
-	.dp(dp),
-	.an(an)
-);
-
-// manual clk
-reg r1, r2, r3;
-
-always @(posedge clk) begin
-	r1 <= btnU;
-	r2 <= r1;
-	r3 <= r2;
-end
-
-assign manual_clk = ~r3 & r2;
-
 // indicates debug break
-assign led = {cpu_dbgreg_dout[16], sw[1], sw[0], hci_active};
+assign led = hci_active;
 
 // pause cpu on hci active
-assign cpu_rdy		= (hci_active) ? 1'b0			 : sw[0] ? manual_clk : 1'b1;
+assign cpu_rdy		= (hci_active) ? 1'b0			 : 1'b1;
 
 // Mux cpumc signals from cpu or hci blk, depending on debug break state (hci_active).
 assign cpumc_a      = (hci_active) ? hci_ram_a		 : cpu_ram_a;

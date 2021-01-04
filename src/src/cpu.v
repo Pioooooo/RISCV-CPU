@@ -211,6 +211,6 @@ module cpu
         .wb_reg_write_en(wb_reg_w_en), .wb_reg_write_dest(wb_reg_w_addr), .wb_reg_write_data(wb_reg_w_data)
     );
 
-    assign dbgreg_dout = {mem_ctrl_if_inst_rdy, pc_pc[15:0]};
+    assign dbgreg_dout = DBG ? {mem_ctrl_if_inst_rdy, pc_pc[15:0]} : `ZERO_WORD;
 
 endmodule: cpu
