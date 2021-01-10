@@ -79,7 +79,7 @@ reg [ADDR_WIDTH-1:0] q_addr_a;
 always @(posedge clk)
   begin
     if(en) begin
-    if (we)
+      if (we)
         ram[addr_a] <= din_a;
       q_addr_a <= addr_a;
     end
